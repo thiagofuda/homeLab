@@ -1,0 +1,30 @@
+name: Validation
+
+on:
+  push:
+    branches:
+      - StartProject
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show GitHub information
+        run: |
+          echo "Repository : ${{ github.repository }}"
+          echo "Branch     : ${{ github.ref_name }}"
+          echo "Actor      : ${{ github.actor }}"
+          echo "Event      : ${{ github.event_name }}"
+
+      - name: Show operating system
+        run: uname -a
+
+      - name: Show current directory
+        run: pwd
+
+      - name: List repository files
+        run: ls -lah
