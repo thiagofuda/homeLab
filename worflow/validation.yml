@@ -28,3 +28,6 @@ jobs:
 
       - name: List repository files
         run: ls -lah
+
+      - name: Show disk usage
+        run: df -h
