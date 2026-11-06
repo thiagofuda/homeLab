@@ -59,3 +59,40 @@ recebe acesso ao socket do Docker.
 
 O timer verifica duas vezes por dia. O Certbot renova somente quando necessario;
 depois, o systemd recarrega o Nginx container para usar o certificado atualizado.
+
+### Deploy manual da aplicacao
+
+1. Copie a versao revisada do NetworkLab para `/opt/networklab`. Nao sobrescreva
+   `/opt/homeLab` ao atualizar somente a aplicacao.
+
+2. Salve a imagem atualmente em producao para permitir rollback:
+
+   ```bash
+   docker image tag networklab-api:latest networklab-api:rollback
+   ```
+
+3. Construa e atualize a aplicacao:
+
+   ```bash
+   cd /opt/networklab
+   docker compose -f compose.prod.yaml up -d --build
+   docker compose -f compose.prod.yaml ps
+   curl -fsS https://xdb.com.br/health
+   ```
+
+### Rollback da aplicacao
+
+Se a nova imagem nao iniciar ou o health check falhar, restaure a imagem
+anterior e recrie somente o servico da aplicacao:
+
+```bash
+cd /opt/networklab
+docker image tag networklab-api:rollback networklab-api:latest
+docker compose -f compose.prod.yaml up -d --no-build api
+docker compose -f compose.prod.yaml ps
+curl -fsS https://xdb.com.br/health
+```
+
+Esse procedimento reverte a imagem da API, nao alteracoes no Nginx ou nos
+certificados. Nunca use `docker compose down --volumes` para rollback: os volumes
+`letsencrypt` e `certbot_webroot` devem ser preservados.
