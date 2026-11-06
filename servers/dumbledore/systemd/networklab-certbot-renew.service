@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew the NetworkLab Let's Encrypt certificate
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/networklab
+ExecStart=/usr/bin/docker compose -f /opt/networklab/compose.prod.yaml --profile certbot run --rm certbot renew --quiet
+ExecStartPost=/usr/bin/docker compose -f /opt/networklab/compose.prod.yaml exec -T nginx nginx -s reload
