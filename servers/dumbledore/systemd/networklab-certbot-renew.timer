@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for NetworkLab certificate renewal twice daily
+
+[Timer]
+OnCalendar=*-*-* 03,15:00:00
+RandomizedDelaySec=1h
+Persistent=true
+Unit=networklab-certbot-renew.service
+
+[Install]
+WantedBy=timers.target
