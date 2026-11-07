@@ -1,98 +1,62 @@
-# Servidor Dumbledore
+# Deploy do NetworkLab
 
-## NetworkLab
+## Operacao
 
-O Nginx e o Certbot rodam em containers Docker. O Nginx recebe as conexoes
-publicas nas portas 80 e 443 e encaminha as requisicoes para a API pela rede
-interna do Compose. A API nao publica portas no host.
+A API, o Nginx e o Certbot rodam em containers Docker Compose. O Nginx publica
+as portas 80 e 443; a API fica acessivel somente pela rede do Compose. Um timer
+systemd no host verifica a renovacao do certificado duas vezes ao dia e recarrega
+o Nginx quando ela tem sucesso.
 
-Os arquivos em `nginx/` sao a fonte das configuracoes do virtual host. Um timer
-systemd do host executa o Certbot container duas vezes ao dia; o Nginx so e
-recarregado depois que o comando de renovacao termina com sucesso. O Certbot nao
-recebe acesso ao socket do Docker.
+O Compose espera os diretorios `NetworkLab` e `homeLab` lado a lado em
+`/opt/networklab` e `/opt/homeLab`.
 
-### Instalacao inicial
+## GitHub Actions
 
-1. Mantenha `NetworkLab` e `homeLab` como diretorios irmaos no servidor:
+O workflow do repositorio NetworkLab:
 
-   ```bash
-   /opt/networklab
-   /opt/homeLab
-   ```
+- Executa lint, testes, build da imagem e health check do container em pushes e
+  pull requests.
+- Publica no GHCR uma imagem identificada pelo commit em pushes para `sprint_4`
+  e `main`.
+- Em `main`, tambem publica a tag `latest` e faz o deploy da imagem daquele
+  commit.
 
-2. Com Caddy parado e os arquivos atualizados, suba a API e o Nginx com a
-   configuracao temporaria HTTP:
+O pacote GHCR precisa ser publico para que o servidor baixe a imagem sem
+credenciais do registry. O GitHub Actions usa o environment `production`, que
+deve permitir deploy somente a partir de `main`, com estas configuracoes:
 
-   ```bash
-   cd /opt/networklab
-   docker compose -f compose.prod.yaml -f compose.bootstrap.yaml up -d --build --remove-orphans
-   ```
+- Variables `DEPLOY_HOST`, `DEPLOY_USER` (valor `deploy`) e
+  `DEPLOY_KNOWN_HOSTS`.
+- Secret `DEPLOY_SSH_PRIVATE_KEY` com uma chave SSH dedicada ao deploy.
 
-3. Com o DNS apontando para a VM e as portas 80 e 443 liberadas, emita o
-    certificado. Nesta instalacao, a conta foi registrada sem e-mail:
+O usuario de deploy precisa de acesso ao Docker. Pertencer ao grupo `docker`
+equivale, na pratica, a ter privilegios de root no host. Fixe em
+`DEPLOY_KNOWN_HOSTS` a chave do servidor verificada por um canal confiavel; nao
+use `ssh-keyscan` dinamico no workflow. Nunca armazene chaves privadas ou senhas
+neste repositorio.
 
-   ```bash
-   docker compose --profile certbot -f compose.prod.yaml run --rm certbot \
-     certonly --webroot -w /var/www/certbot -d xdb.com.br \
-       --agree-tos --register-unsafely-without-email --non-interactive
-   ```
+## Deploy manual e rollback
 
-    Sem e-mail, a renovacao automatica continua ativa, mas nao ha avisos de
-    expiracao enviados pelo Let's Encrypt.
-
-4. Recrie o Nginx com a configuracao HTTPS definitiva:
-
-   ```bash
-   docker compose -f compose.prod.yaml up -d --force-recreate nginx
-   ```
-
-5. Instale e habilite o timer de renovacao no host:
-
-   ```bash
-   sudo install -m 644 /opt/homeLab/servers/dumbledore/systemd/networklab-certbot-renew.service /etc/systemd/system/
-   sudo install -m 644 /opt/homeLab/servers/dumbledore/systemd/networklab-certbot-renew.timer /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now networklab-certbot-renew.timer
-   cd /opt/networklab
-   docker compose --profile certbot -f compose.prod.yaml run --rm certbot renew --dry-run
-   ```
-
-O timer verifica duas vezes por dia. O Certbot renova somente quando necessario;
-depois, o systemd recarrega o Nginx container para usar o certificado atualizado.
-
-### Deploy manual da aplicacao
-
-1. Copie a versao revisada do NetworkLab para `/opt/networklab`. Nao sobrescreva
-   `/opt/homeLab` ao atualizar somente a aplicacao.
-
-2. Salve a imagem atualmente em producao para permitir rollback:
-
-   ```bash
-   docker image tag networklab-api:latest networklab-api:rollback
-   ```
-
-3. Construa e atualize a aplicacao:
-
-   ```bash
-   cd /opt/networklab
-   docker compose -f compose.prod.yaml up -d --build
-   docker compose -f compose.prod.yaml ps
-   curl -fsS https://xdb.com.br/health
-   ```
-
-### Rollback da aplicacao
-
-Se a nova imagem nao iniciar ou o health check falhar, restaure a imagem
-anterior e recrie somente o servico da aplicacao:
+Use o SHA do commit como tag da imagem:
 
 ```bash
 cd /opt/networklab
-docker image tag networklab-api:rollback networklab-api:latest
-docker compose -f compose.prod.yaml up -d --no-build api
-docker compose -f compose.prod.yaml ps
-curl -fsS https://xdb.com.br/health
+IMAGE_TAG=SHA_DO_COMMIT docker compose -f compose.prod.yaml pull api
+IMAGE_TAG=SHA_DO_COMMIT docker compose -f compose.prod.yaml up -d --no-deps --wait api
+docker compose -f compose.prod.yaml restart nginx
+curl -fsS https://seu-dominio.example/health
 ```
 
-Esse procedimento reverte a imagem da API, nao alteracoes no Nginx ou nos
-certificados. Nunca use `docker compose down --volumes` para rollback: os volumes
-`letsencrypt` e `certbot_webroot` devem ser preservados.
+Antes de atualizar, o workflow salva a imagem atual com a tag local `rollback`.
+Para restaura-la manualmente:
+
+```bash
+cd /opt/networklab
+IMAGE_TAG=rollback docker compose -f compose.prod.yaml up -d --no-deps --wait api
+docker compose -f compose.prod.yaml restart nginx
+curl -fsS https://seu-dominio.example/health
+```
+
+Substitua `SHA_DO_COMMIT` e `seu-dominio.example` pelos valores corretos. O
+rollback cobre somente a imagem da API. Preserve os volumes `letsencrypt` e
+`certbot_webroot`; nao use `docker compose down --volumes` em deploys ou rollback.
