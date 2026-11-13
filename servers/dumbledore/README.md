@@ -1,4 +1,7 @@
-# Deploy do NetworkLab
+# Deploy do InfraLab
+
+InfraLab e o nome publico da aplicacao. O codigo permanece no repositorio
+tecnico `NetworkLab`, e os paths e nomes de imagem/servico existentes nao mudam.
 
 ## Operacao
 
