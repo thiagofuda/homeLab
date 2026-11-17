@@ -13,6 +13,16 @@ o Nginx quando ela tem sucesso.
 O Compose espera os diretorios `NetworkLab` e `homeLab` lado a lado em
 `/opt/networklab` e `/opt/homeLab`.
 
+No bootstrap HTTP, somente o desafio ACME fica disponível. As demais rotas
+retornam 503 até que a configuração HTTPS de produção seja ativada.
+
+Em HTTPS, os endpoints Terraform AWS e OCI compartilham o limite por IP de
+10 requisições por minuto (burst 3), com corpo de até 1 MiB. O OCI IAM com
+Gemini tem limite próprio de 3 requisições por minuto por IP (burst 1), com
+corpo de até 32 KiB. O Nginx retorna 413 ou 429 em JSON quando rejeita a
+requisição. A API deve continuar acessível apenas pela rede do Compose e
+o Nginx deve sobrescrever o IP encaminhado com o endereço que ele observou.
+
 ## GitHub Actions
 
 O workflow do repositorio NetworkLab:
