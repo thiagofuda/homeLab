@@ -1,77 +1,54 @@
 # homeLab
-
-This is my personal infrastructure lab.
-
-I work with IT infrastructure, Linux, and cloud platforms, and I created this
-repository to document my own servers, configurations, experiments, and things
-I learn in my free time.
-
-My goal is to have a place where I can test ideas, build small projects, and
-practice infrastructure and automation without making things more complicated
-than they need to be.
+ 
+Configurations and notes for a personal lab environment.
 
 ## Servers
 
 ### Dumbledore
 
-Dumbledore is my active server, hosted on DigitalOcean. It runs Ubuntu 26.04 LTS
-with Docker and Docker Compose. Nginx acts as the reverse proxy, HTTPS uses
-Let's Encrypt, and a systemd timer checks for certificate renewal. SSH access
-uses keys, and a DigitalOcean Cloud Firewall protects the server.
+VPS hosted on DigitalOcean.
 
-Dumbledore currently hosts InfraLab. Its application code is in the
-[NetworkLab repository](https://github.com/thiagofuda/NetworkLab); this
-repository contains the server configuration.
+Runs Ubuntu, Docker Compose, and Nginx, with HTTPS certificates from Let's Encrypt. Certificate renewal is handled by a systemd timer.
+
+SSH access uses keys, and the server is protected by DigitalOcean Cloud Firewall.
+
+Currently hosts [InfraLab](https://xdb.com.br).
+
+- [InfraLab application code](https://github.com/thiagofuda/NetworkLab)
+- [Dumbledore configuration and notes](servers/dumbledore/README.md)
 
 ### Fawkes
 
-The `servers/fawkes/` directory is reserved for future experiments. It does not
-currently contain an active server configuration.
+Directory reserved for another server or future experiments.
 
-## Repository Structure
+There is no active server under this name yet.
+
+## Repository structure
 
 ```text
-homeLab/
-├── docs/                         # Currently empty
-├── servers/
-│   ├── dumbledore/
-│   │   ├── docker/               # Currently empty
-│   │   ├── nginx/                # Reverse proxy configuration
-│   │   ├── systemd/              # Certificate renewal timer and service
-│   │   └── README.md             # Dumbledore deployment notes
-│   └── fawkes/                   # Reserved; currently empty
-└── worflow/
-    └── validation.yml
+servers/
+├── dumbledore/
+│   ├── nginx/
+│   ├── systemd/
+│   └── README.md
+└── fawkes/
 ```
 
-## Current Projects
+Installation and configuration notes are in `servers/dumbledore/README.md`.
 
-- [InfraLab](https://xdb.com.br): public tools for infrastructure and network
-  diagnostics.
-- [Application source](https://github.com/thiagofuda/NetworkLab): Python and
-  FastAPI code for InfraLab.
-- [Infrastructure configuration](https://github.com/thiagofuda/homeLab): this
-  repository.
+## Technologies
 
-## What I Want to Explore
-
-- Linux server administration.
-- Infrastructure as Code.
-- Cloud platforms.
-- Docker and containers.
-- CI/CD and automation.
-- Monitoring and observability.
-- Python for infrastructure automation.
-- AI-assisted infrastructure diagnostics.
+- Linux
+- Docker and Docker Compose
+- Nginx
+- Let's Encrypt
+- GitHub Actions
+- Shell scripts
 
 ## Notes
 
-This is a personal lab, and it will change as I learn and try different
-approaches.
+This repository contains configurations and documentation for a personal lab environment.
 
-I use GitHub Copilot and ChatGPT to help review configurations, discuss ideas,
-and understand new technologies.
+Passwords, private keys, and other sensitive information should not be committed.
 
-I try to keep everything simple, documented, and easy to maintain.
-
-The most important part is to learn something new and have fun along the way.
+The structure may change as more servers, services, and experiments are added.
