@@ -23,6 +23,46 @@ corpo de até 32 KiB. O Nginx retorna 413 ou 429 em JSON quando rejeita a
 requisição. A API deve continuar acessível apenas pela rede do Compose e
 o Nginx deve sobrescrever o IP encaminhado com o endereço que ele observou.
 
+## HTTPS para infralab.fuda.com.br
+
+O registro DNS do subdominio deve resolver para a VPS antes da emissao.
+Execute os comandos em `/opt/networklab` com a API ativa e saudavel.
+Guarde o commit anterior do homeLab e o SHA da imagem da API para recuperar
+o ambiente se a troca falhar.
+
+Para emitir o certificado inicial, recrie o Nginx em modo bootstrap. Nesse
+modo, o caminho ACME responde em HTTP e a aplicacao retorna 503.
+
+```bash
+docker compose -f compose.prod.yaml -f compose.bootstrap.yaml \
+  up -d --no-deps --force-recreate nginx
+docker compose -f compose.prod.yaml --profile certbot run --rm certbot certonly \
+  --webroot -w /var/www/certbot --cert-name infralab.fuda.com.br \
+  -d infralab.fuda.com.br --non-interactive --agree-tos --email "$ACME_EMAIL"
+```
+
+Defina `ACME_EMAIL` com seu email de contato antes da emissao. Confirme com
+`certbot certificates` pelo mesmo servico Compose que o certificado e a chave
+estao em `/etc/letsencrypt/live/infralab.fuda.com.br/`. Valide a configuracao
+HTTPS antes de recriar o proxy sem o override.
+
+```bash
+docker compose -f compose.prod.yaml run --rm --no-deps nginx nginx -t
+docker compose -f compose.prod.yaml up -d --no-deps --force-recreate nginx
+curl -fsS https://infralab.fuda.com.br/health
+```
+
+O timer `networklab-certbot-renew.timer` usa os registros do Certbot para renovar
+e recarregar o Nginx. Verifique o desafio em HTTPS de producao com
+`renew --dry-run --cert-name infralab.fuda.com.br` pelo servico Certbot. Depois
+do smoke test e de confirmar que nenhum outro servico usa o certificado
+anterior, retire o registro antigo com `certbot delete --cert-name NOME_ANTERIOR`
+pelo mesmo servico. Isso evita tentativas de renovacao do hostname retirado.
+
+Se a ativacao falhar, restaure a configuracao anterior do homeLab e recrie o
+Nginx com o Compose de producao enquanto o certificado anterior ainda existir.
+Preserve os volumes do Certbot durante toda a troca.
+
 ## GitHub Actions
 
 O workflow do repositorio NetworkLab:
@@ -57,7 +97,7 @@ cd /opt/networklab
 IMAGE_TAG=SHA_DO_COMMIT docker compose -f compose.prod.yaml pull api
 IMAGE_TAG=SHA_DO_COMMIT docker compose -f compose.prod.yaml up -d --no-deps --wait api
 docker compose -f compose.prod.yaml restart nginx
-curl -fsS https://seu-dominio.example/health
+curl -fsS https://infralab.fuda.com.br/health
 ```
 
 Antes de atualizar, o workflow salva a imagem atual com a tag local `rollback`.
@@ -67,9 +107,9 @@ Para restaura-la manualmente:
 cd /opt/networklab
 IMAGE_TAG=rollback docker compose -f compose.prod.yaml up -d --no-deps --wait api
 docker compose -f compose.prod.yaml restart nginx
-curl -fsS https://seu-dominio.example/health
+curl -fsS https://infralab.fuda.com.br/health
 ```
 
-Substitua `SHA_DO_COMMIT` e `seu-dominio.example` pelos valores corretos. O
+Substitua `SHA_DO_COMMIT` pelo SHA correto. O
 rollback cobre somente a imagem da API. Preserve os volumes `letsencrypt` e
 `certbot_webroot`; nao use `docker compose down --volumes` em deploys ou rollback.

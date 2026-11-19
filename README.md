@@ -12,7 +12,7 @@ Runs Ubuntu, Docker Compose, and Nginx, with HTTPS certificates from Let's Encry
 
 SSH access uses keys, and the server is protected by DigitalOcean Cloud Firewall.
 
-Currently hosts [InfraLab](https://xdb.com.br).
+Currently hosts [InfraLab](https://infralab.fuda.com.br).
 
 - [InfraLab application code](https://github.com/thiagofuda/NetworkLab)
 - [Dumbledore configuration and notes](servers/dumbledore/README.md)
