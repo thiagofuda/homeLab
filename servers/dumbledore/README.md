@@ -63,6 +63,40 @@ Se a ativacao falhar, restaure a configuracao anterior do homeLab e recrie o
 Nginx com o Compose de producao enquanto o certificado anterior ainda existir.
 Preserve os volumes do Certbot durante toda a troca.
 
+## Pagina estatica de fuda.com.br
+
+Aponte o registro A do dominio principal para a VPS. Se houver um registro
+AAAA, ele tambem precisa apontar para a VPS e aceitar conexoes na porta 80.
+Atualize o checkout do homeLab e o Compose de producao no servidor. Execute
+os comandos abaixo em `/opt/networklab`.
+
+Na primeira emissao, use o bootstrap HTTP existente. Durante o bootstrap, a
+API continua rodando, mas o InfraLab fica temporariamente indisponivel pelo
+Nginx. Defina `ACME_EMAIL` com o email da conta do Certbot.
+
+```bash
+docker compose -f compose.prod.yaml -f compose.bootstrap.yaml \
+  up -d --no-deps --force-recreate nginx
+docker compose -f compose.prod.yaml --profile certbot run --rm certbot certonly \
+  --webroot -w /var/www/certbot --cert-name fuda.com.br \
+  -d fuda.com.br --non-interactive --agree-tos --email "$ACME_EMAIL"
+docker compose -f compose.prod.yaml run --rm --no-deps nginx nginx -t
+docker compose -f compose.prod.yaml up -d --no-deps --force-recreate nginx
+curl -fsS https://fuda.com.br/
+curl -fsS https://infralab.fuda.com.br/health
+```
+
+O timer existente renova os dois certificados pelo webroot e recarrega o
+Nginx. Para testar a renovacao da pagina estatica:
+
+```bash
+docker compose -f compose.prod.yaml --profile certbot run --rm certbot renew \
+  --dry-run --cert-name fuda.com.br
+```
+
+Se a emissao ou a ativacao falhar, restaure o arquivo de producao anterior
+do Nginx e recrie somente o proxy para reabrir o acesso HTTPS ao InfraLab.
+
 ## GitHub Actions
 
 O workflow do repositorio NetworkLab:
